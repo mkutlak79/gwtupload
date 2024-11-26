@@ -9,9 +9,6 @@
 
   <modules>
     <module>core</module>
-    <module>gae</module>
-    <module>jsupload</module>
-    <module>samples</module>
   </modules>
 
   <parent>
@@ -22,24 +19,23 @@
 
   <properties>
     <main.basedir>${project.parent.basedir}</main.basedir>
-    <maven.compiler.source>1.6</maven.compiler.source>
-    <maven.compiler.target>1.6</maven.compiler.target>
+<!--    <maven.compiler.source>1.8</maven.compiler.source>
+    <maven.compiler.target>1.8</maven.compiler.target>-->
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <gwtVersion>2.7.0</gwtVersion>
-    <gwtMaven>2.7.0</gwtMaven>
-    <commonsFileuploadVersion>1.3.1</commonsFileuploadVersion>
-    <commonsIoVersion>2.3</commonsIoVersion>
-    <gwtChismesVersion>0.9.7</gwtChismesVersion>
-    <gwtExporterVersion>2.4.0-M1</gwtExporterVersion>
-    <gwtIncubatorVersion>20101117-r1766</gwtIncubatorVersion>
+    <gwtVersion>2.12.0</gwtVersion>
+    <gwtMaven>2.12.0</gwtMaven>
+    <commonsFileuploadVersion>2.0.0-M2</commonsFileuploadVersion>
+    <commonsIoVersion>2.18.0</commonsIoVersion>
+    <gwtChismesVersion>0.9.8</gwtChismesVersion>
+    <gwtExporterVersion>2.5.1</gwtExporterVersion>
+    <gwtIncubatorVersion>1.5-Dec_28</gwtIncubatorVersion>
     <junitVersion>3.8.2</junitVersion>
     <log4jVersion>1.2.16</log4jVersion>
     <commonsLang3Version>3.1</commonsLang3Version>
     <downloadLabel>Beta</downloadLabel>
     <localMavenRepo>file:${env.HOME}/workspace/GWTUpload-mavenrepo</localMavenRepo>
-    <gae.version>1.9.17</gae.version>
     <sonatypeRepoId>sonatype-nexus-snapshots</sonatypeRepoId>
-    <sonatypeUrl>http://oss.sonatype.org/content/repositories/snapshots</sonatypeUrl>
+    <sonatypeUrl>https://oss.sonatype.org/content/repositories/snapshots</sonatypeUrl>
     <wikiSvnExec>true</wikiSvnExec>
   </properties>
 
@@ -67,7 +63,7 @@
        </properties>
        <dependencies>
        <dependency>
-         <groupId>com.google.gwt</groupId>
+         <groupId>org.gwtproject</groupId>
          <artifactId>gwt-dev</artifactId>
          <version>${gwtVersion}</version>
          <scope>provided</scope>
@@ -78,7 +74,7 @@
        <id>prod</id>
        <properties>
         <sonatypeRepoId>sonatype-nexus-staging</sonatypeRepoId>
-        <sonatypeUrl>http://oss.sonatype.org/service/local/staging/deploy/maven2</sonatypeUrl>
+        <sonatypeUrl>https://oss.sonatype.org/service/local/staging/deploy/maven2</sonatypeUrl>
         <wikiSvnExec>git</wikiSvnExec>
        </properties>
      </profile>
@@ -86,7 +82,7 @@
 
   <dependencies>
     <dependency>
-      <groupId>com.google.gwt</groupId>
+      <groupId>org.gwtproject</groupId>
       <artifactId>gwt-user</artifactId>
       <version>${gwtVersion}</version>
       <scope>provided</scope>
@@ -98,8 +94,8 @@
       <scope>provided</scope>
     </dependency>
     <dependency>
-      <groupId>commons-fileupload</groupId>
-      <artifactId>commons-fileupload</artifactId>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-fileupload2-jakarta-servlet6</artifactId>
       <version>${commonsFileuploadVersion}</version>
     </dependency>
     <dependency>
@@ -125,12 +121,6 @@
       <version>${gwtExporterVersion}</version>
       <scope>provided</scope>
     </dependency>
-    <dependency>
-      <groupId>com.google.appengine</groupId>
-      <artifactId>appengine-api-1.0-sdk</artifactId>
-      <version>${gae.version}</version>
-      <scope>provided</scope>
-    </dependency>
   </dependencies>
 
   <description>
@@ -148,12 +138,12 @@
    It includes a bunch of useful examples to learn how to use the library and see its features.
   </description>
 
-  <url>http://code.google.com/p/gwtupload/</url>
+  <url>https://code.google.com/p/gwtupload/</url>
 
   <licenses>
     <license>
       <name>Apache License, Version 2.0</name>
-      <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+      <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
     </license>
   </licenses>
 
@@ -176,54 +166,58 @@
     <mailingList>
       <name>gwtupload@googlegroups.com</name>
       <post>gwtupload@googlegroups.com</post>
-      <archive>http://groups.google.com/group/gwtupload</archive>
+      <archive>https://groups.google.com/group/gwtupload</archive>
     </mailingList>
   </mailingLists>
 
   <repositories>
     <repository>
       <id>repo1</id>
-      <url>http://repo1.maven.org/maven2/</url>
+      <url>https://repo1.maven.org/maven2/</url>
     </repository>
     <repository>
       <id>gwtupload</id>
-      <url>http://gwtupload.googlecode.com/svn/mavenrepo/</url>
+      <url>https://gwtupload.googlecode.com/svn/mavenrepo/</url>
     </repository>
     <repository>
       <id>gwtchismes</id>
-      <url>http://gwtchismes.googlecode.com/svn/mavenrepo/</url>
+      <url>https://gwtchismes.googlecode.com/svn/mavenrepo/</url>
     </repository>
     <repository>
       <id>timepedia</id>
-      <url>http://timefire-repository.googlecode.com/svn/mavenrepo/</url>
+      <url>https://timefire-repository.googlecode.com/svn/mavenrepo/</url>
     </repository>
     <repository>
       <id>seasar</id>
-      <url>http://maven.seasar.org/maven2</url>
+      <url>https://maven.seasar.org/maven2</url>
     </repository>
     <repository>
       <id>gquery-plugins</id>
-      <url>http://gwtquery-plugins.googlecode.com/svn/mavenrepo</url>
+      <url>https://gwtquery-plugins.googlecode.com/svn/mavenrepo</url>
       <snapshots>
         <enabled>true</enabled>
       </snapshots>
     </repository>
+	<repository>
+	  <id>logicaldoc</id>
+	  <url>https://logicaldoc.sourceforge.net/maven/</url>
+	</repository>
   </repositories>
 
   <pluginRepositories>
     <pluginRepository>
       <id>gwtupload</id>
-      <url>http://gwtupload.googlecode.com/svn/mavenrepo/</url>
+      <url>https://gwtupload.googlecode.com/svn/mavenrepo/</url>
     </pluginRepository>
     <pluginRepository>
       <id>codehaus.snapshots</id>
-      <url>http://snapshots.repository.codehaus.org/</url>
+      <url>https://snapshots.repository.codehaus.org/</url>
     </pluginRepository>
   </pluginRepositories>
 
   <issueManagement>
     <system>Google Code</system>
-    <url>http://code.google.com/p/gwtupload/issues/list</url>
+    <url>https://code.google.com/p/gwtupload/issues/list</url>
   </issueManagement>
   <scm>
     <connection>scm:git:git@github.com:manolo/gwtupload.git</connection>

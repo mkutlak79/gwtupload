@@ -17,12 +17,10 @@
  */
 package gwtupload.server;
 
-import org.apache.commons.fileupload.FileItem;
-import org.apache.commons.fileupload.FileItemFactory;
-import org.apache.commons.fileupload.FileUploadBase;
-import org.apache.commons.fileupload.FileUploadBase.SizeLimitExceededException;
-import org.apache.commons.fileupload.disk.DiskFileItemFactory;
-import org.apache.commons.fileupload.servlet.ServletFileUpload;
+import org.apache.commons.fileupload2.core.DiskFileItemFactory;
+import org.apache.commons.fileupload2.core.FileItem;
+import org.apache.commons.fileupload2.core.FileItemFactory;
+import org.apache.commons.fileupload2.jakarta.servlet6.JakartaServletFileUpload;
 import org.apache.commons.io.IOUtils;
 
 import java.io.IOException;
@@ -38,13 +36,13 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.ResourceBundle;
 
-import javax.servlet.Servlet;
-import javax.servlet.ServletConfig;
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServlet;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import javax.servlet.http.HttpSession;
+import jakarta.servlet.Servlet;
+import jakarta.servlet.ServletConfig;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 
 import static gwtupload.shared.UConsts.MULTI_SUFFIX;
 import static gwtupload.shared.UConsts.PARAM_DELAY;
@@ -335,8 +333,12 @@ public class UploadServlet extends HttpServlet implements Servlet {
     if (removeData && sessionFiles != null) {
       for (FileItem fileItem : sessionFiles) {
         if (fileItem != null && !fileItem.isFormField()) {
-          fileItem.delete();
-        }
+			try {
+				fileItem.delete();
+			} catch (IOException e) {
+				throw new RuntimeException(e);
+			}
+		}
       }
     }
     request.getSession().removeAttribute(sessionFilesKey);
@@ -441,7 +443,7 @@ public class UploadServlet extends HttpServlet implements Servlet {
    *
    * @param request
    * @param response
-   * @param message
+   * @param xmlResponse
    * @param post
    *        specify whether the request is post or not.
    * @throws IOException
@@ -616,7 +618,7 @@ public class UploadServlet extends HttpServlet implements Servlet {
   private long getContentLength(HttpServletRequest request) {
     long size = -1;
     try {
-      size = Long.parseLong(request.getHeader(FileUploadBase.CONTENT_LENGTH));
+      size = Long.parseLong(request.getHeader("Content-Length"));
     } catch (NumberFormatException e) {
     }
     return size;
@@ -761,7 +763,7 @@ public class UploadServlet extends HttpServlet implements Servlet {
    * @return FileItemFactory
    */
   protected FileItemFactory getFileItemFactory(long requestSize) {
-    return new DefaultFileItemFactory();
+    return new DiskFileItemFactory.Builder().get();
   }
 
   /**
@@ -878,7 +880,7 @@ public class UploadServlet extends HttpServlet implements Servlet {
 
       // Create the factory used for uploading files,
       FileItemFactory factory = getFileItemFactory(getContentLength(request));
-      ServletFileUpload uploader = new ServletFileUpload(factory);
+      JakartaServletFileUpload uploader = new JakartaServletFileUpload(factory);
       uploader.setSizeMax(maxSize);
       uploader.setFileSizeMax(maxFileSize);
       uploader.setProgressListener(listener);
@@ -915,10 +917,6 @@ public class UploadServlet extends HttpServlet implements Servlet {
     } catch(LinkageError e) {
       logger.error("UPLOAD-SERVLET (" + request.getSession().getId() + ") Exception: " + e.getMessage() + "\n" + stackTraceToString(e));
       RuntimeException ex = new UploadActionException(getMessage("restricted", e.getMessage()), e);
-      listener.setException(ex);
-      throw ex;
-    } catch (SizeLimitExceededException e) {
-      RuntimeException ex = new UploadSizeLimitException(e.getPermittedSize(), e.getActualSize());
       listener.setException(ex);
       throw ex;
     } catch (UploadSizeLimitException e) {
@@ -977,20 +975,5 @@ public class UploadServlet extends HttpServlet implements Servlet {
    */
   protected String getSessionLastFilesKey(HttpServletRequest request) {
     return SESSION_LAST_FILES;
-  }
-
-  /**
-   * DiskFileItemFactory for Multiple file selection.
-   */
-  public static class DefaultFileItemFactory extends DiskFileItemFactory {
-    private HashMap<String, Integer> map = new HashMap<String, Integer>();
-
-    @Override
-    public FileItem createItem(String fieldName, String contentType, boolean isFormField, String fileName) {
-      Integer cont = map.get(fieldName) != null ? (map.get(fieldName) + 1): 0;
-      map.put(fieldName, cont);
-      fieldName = fieldName.replace(MULTI_SUFFIX, "") + "-" + cont;
-      return super.createItem(fieldName, contentType, isFormField, fileName);
-    }
   }
 }
