@@ -53,7 +53,7 @@ public abstract class AbstractUploadListener implements ProgressListener, Serial
 
   protected boolean exceptionTrhown = false;
 
-  private XMLResponse postResponse = null;
+  private String postResponse = null;
 
   protected int frozenTimeout = 60000;
 
@@ -159,7 +159,7 @@ public abstract class AbstractUploadListener implements ProgressListener, Serial
     save();
   }
 
-  public void setFinished(XMLResponse postResponse) {
+  public void setFinished(String postResponse) {
     this.postResponse = postResponse;
     save();
   }
@@ -207,7 +207,7 @@ public abstract class AbstractUploadListener implements ProgressListener, Serial
     }
   }
 
-  public XMLResponse getPostResponse() {
+  public String getPostResponse() {
     return postResponse;
   }
 }

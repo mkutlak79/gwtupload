@@ -1,6 +1,5 @@
 /*
  * Copyright 2010 Manuel Carrasco Moñino. (manolo at apache/org)
- * Copyright 2017 Sven Strickroth <email@cs-ware.de>
  * http://code.google.com/p/gwtupload
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
@@ -34,6 +33,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.ResourceBundle;
 
 import jakarta.servlet.Servlet;
@@ -50,12 +50,27 @@ import static gwtupload.shared.UConsts.PARAM_MAX_FILE_SIZE;
 import static gwtupload.shared.UConsts.TAG_BLOBSTORE;
 import static gwtupload.shared.UConsts.TAG_BLOBSTORE_PATH;
 import static gwtupload.shared.UConsts.TAG_CANCELED;
+import static gwtupload.shared.UConsts.TAG_CTYPE;
 import static gwtupload.shared.UConsts.TAG_CURRENT_BYTES;
+import static gwtupload.shared.UConsts.TAG_DELETED;
 import static gwtupload.shared.UConsts.TAG_ERROR;
+import static gwtupload.shared.UConsts.TAG_FIELD;
+import static gwtupload.shared.UConsts.TAG_FILE;
+import static gwtupload.shared.UConsts.TAG_FILES;
 import static gwtupload.shared.UConsts.TAG_FINISHED;
+import static gwtupload.shared.UConsts.TAG_KEY;
+import static gwtupload.shared.UConsts.TAG_MSG_END;
+import static gwtupload.shared.UConsts.TAG_MSG_GT;
+import static gwtupload.shared.UConsts.TAG_MSG_LT;
+import static gwtupload.shared.UConsts.TAG_MSG_START;
+import static gwtupload.shared.UConsts.TAG_NAME;
+import static gwtupload.shared.UConsts.TAG_PARAM;
+import static gwtupload.shared.UConsts.TAG_PARAMS;
 import static gwtupload.shared.UConsts.TAG_PERCENT;
 import static gwtupload.shared.UConsts.TAG_SESSION_ID;
+import static gwtupload.shared.UConsts.TAG_SIZE;
 import static gwtupload.shared.UConsts.TAG_TOTAL_BYTES;
+import static gwtupload.shared.UConsts.TAG_VALUE;
 
 import gwtupload.server.exceptions.UploadActionException;
 import gwtupload.server.exceptions.UploadCanceledException;
@@ -133,8 +148,11 @@ public class UploadServlet extends HttpServlet implements Servlet {
   protected static final int DEFAULT_REQUEST_LIMIT_KB = 5 * 1024 * 1024;
   protected static final int DEFAULT_SLOW_DELAY_MILLIS = 300;
 
-  protected static final String XML_ERROR_ITEM_NOT_FOUND = "item not found";
-  protected static final String XML_ERROR_TIMEOUT = "timeout receiving file";
+  protected static final String XML_CANCELED_TRUE = "<" + TAG_CANCELED + ">true</" + TAG_CANCELED + ">";
+  protected static final String XML_DELETED_TRUE = "<" + TAG_DELETED + ">true</" + TAG_DELETED + ">";
+  protected static final String XML_ERROR_ITEM_NOT_FOUND = "<" + TAG_ERROR + ">item not found</" + TAG_ERROR + ">";
+  protected static final String XML_ERROR_TIMEOUT = "<" + TAG_ERROR + ">timeout receiving file</" + TAG_ERROR + ">";
+  protected static final String XML_FINISHED_OK = "<" + TAG_FINISHED + ">OK</" + TAG_FINISHED + ">";
 
   protected static UploadLogger logger = UploadLogger.getLogger(UploadServlet.class);
 
@@ -143,6 +161,8 @@ public class UploadServlet extends HttpServlet implements Servlet {
   private static boolean appEngine = false;
 
   private static final long serialVersionUID = 2740693677625051632L;
+
+  private static String XML_TPL = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<response>%%MESSAGE%%</response>\n";
 
   private String corsDomainsRegex = "^$";
 
@@ -372,9 +392,7 @@ public class UploadServlet extends HttpServlet implements Servlet {
       logger.info("UPLOAD-SERVLET (" + request.getSession().getId() + ") removeUploadedFile: " + parameter + " not in session.");
     }
 
-    XMLResponse xmlResponse = new XMLResponse();
-    xmlResponse.addResponseTag(TAG_ERROR, "true");
-    renderXmlResponse(request, response, xmlResponse);
+    renderXmlResponse(request, response, XML_DELETED_TRUE);
     return item;
   }
 
@@ -448,16 +466,19 @@ public class UploadServlet extends HttpServlet implements Servlet {
    *        specify whether the request is post or not.
    * @throws IOException
    */
-  protected static void renderXmlResponse(HttpServletRequest request, HttpServletResponse response, XMLResponse xmlResponse, boolean post) throws IOException {
+  protected static void renderXmlResponse(HttpServletRequest request, HttpServletResponse response, String message, boolean post) throws IOException {
     String contentType = post ? "text/plain" : "text/html";
 
-    String xml = xmlResponse.getXML();
+    String xml = XML_TPL.replace("%%MESSAGE%%", message != null ? message : "");
+    if (post) {
+      xml = TAG_MSG_START + xml.replaceAll("<", TAG_MSG_LT).replaceAll(">", TAG_MSG_GT) + TAG_MSG_END;
+    }
 
     renderMessage(response, xml, contentType);
   }
 
-  protected static void renderXmlResponse(HttpServletRequest request, HttpServletResponse response, XMLResponse xmlResponse) throws IOException {
-    renderXmlResponse(request, response, xmlResponse, false);
+  protected static void renderXmlResponse(HttpServletRequest request, HttpServletResponse response, String message) throws IOException {
+    renderXmlResponse(request, response, message, false);
   }
 
   protected static void setThreadLocalRequest(HttpServletRequest request) {
@@ -528,9 +549,7 @@ public class UploadServlet extends HttpServlet implements Servlet {
       copyFromInputStreamToOutputStream(item.getInputStream(), response.getOutputStream());
     } else {
       logger.error("UPLOAD-SERVLET (" + request.getSession().getId() + ") getUploadedFile: " + parameter + " file isn't in session.");
-      XMLResponse xmlResponse = new XMLResponse();
-      xmlResponse.addResponseTag(TAG_ERROR, XML_ERROR_ITEM_NOT_FOUND);
-      renderXmlResponse(request, response, xmlResponse);
+      renderXmlResponse(request, response, XML_ERROR_ITEM_NOT_FOUND);
     }
   }
 
@@ -631,26 +650,23 @@ public class UploadServlet extends HttpServlet implements Servlet {
    */
   protected void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
     perThreadRequest.set(request);
-    XMLResponse xmlResponse = new XMLResponse();
     try {
       AbstractUploadListener listener = getCurrentListener(request);
       if (request.getParameter(UConsts.PARAM_SESSION) != null) {
         logger.debug("UPLOAD-SERVLET (" + request.getSession().getId() + ") new session, blobstore=" + (isAppEngine() && useBlobstore));
         String sessionId = request.getSession().getId();
-        xmlResponse.addResponseTag(TAG_BLOBSTORE, (isAppEngine() && useBlobstore) ? "true" : "false");
-        xmlResponse.addResponseTag(TAG_SESSION_ID, sessionId);
-        renderXmlResponse(request, response, xmlResponse);
+        renderXmlResponse(request, response,
+            "<" + TAG_BLOBSTORE + ">" + (isAppEngine() && useBlobstore) + "</" + TAG_BLOBSTORE + ">" +
+            "<" + TAG_SESSION_ID + ">" + sessionId + "</" + TAG_SESSION_ID + ">");
       } else if (isAppEngine() && (request.getParameter(UConsts.PARAM_BLOBSTORE) != null || request.getParameterMap().size() == 0)) {
         String blobStorePath = getBlobstorePath(request);
         logger.debug("UPLOAD-SERVLET (" + request.getSession().getId() + ") getBlobstorePath=" + blobStorePath);
-        xmlResponse.addResponseTag(TAG_BLOBSTORE_PATH, blobStorePath);
-        renderXmlResponse(request, response, xmlResponse);
+        renderXmlResponse(request, response, "<" + TAG_BLOBSTORE_PATH + ">" + blobStorePath + "</" + TAG_BLOBSTORE_PATH + ">");
       } else if (request.getParameter(UConsts.PARAM_SHOW) != null) {
         getUploadedFile(request, response);
       } else if (request.getParameter(UConsts.PARAM_CANCEL) != null) {
         cancelUpload(request);
-        xmlResponse.addResponseTag(TAG_CANCELED, "true");
-        renderXmlResponse(request, response, xmlResponse);
+        renderXmlResponse(request, response, XML_CANCELED_TRUE);
       } else if (request.getParameter(UConsts.PARAM_REMOVE) != null) {
         removeUploadedFile(request, response);
       } else if (request.getParameter(UConsts.PARAM_CLEAN) != null) {
@@ -658,18 +674,29 @@ public class UploadServlet extends HttpServlet implements Servlet {
         if (listener != null) {
           listener.remove();
         }
-        xmlResponse.addResponseTag(TAG_FINISHED, "ok");
-        renderXmlResponse(request, response, xmlResponse);
+        renderXmlResponse(request, response, XML_FINISHED_OK);
       } else if (listener != null && listener.isFinished()) {
         removeCurrentListener(request);
         renderXmlResponse(request, response, listener.getPostResponse());
       } else {
-        xmlResponse.addResponseTags(getUploadStatus(request, request.getParameter(UConsts.PARAM_FILENAME), null));
-        renderXmlResponse(request, response, xmlResponse);
+        String message = statusToString(getUploadStatus(request, request.getParameter(UConsts.PARAM_FILENAME), null));
+        renderXmlResponse(request, response, message);
       }
     } finally {
       perThreadRequest.set(null);
     }
+  }
+
+  protected String statusToString(Map<String, String> stat) {
+    String message = "";
+    for (Entry<String, String> e : stat.entrySet()) {
+      if (e.getValue() != null) {
+        String k = e.getKey();
+        String v = e.getValue().replaceAll("</*pre>", "").replaceAll("&lt;", "<").replaceAll("&gt;", ">");
+        message += "<" + k + ">" + v + "</" + k + ">\n";
+      }
+    }
+    return message;
   }
 
   /**
@@ -683,47 +710,79 @@ public class UploadServlet extends HttpServlet implements Servlet {
    */
   protected void doPost(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
     perThreadRequest.set(request);
-    XMLResponse xmlResponse = new XMLResponse();
+    String error;
     try {
-      String error = parsePostRequest(request, response);
-      if (error != null && !error.isEmpty()) {
-        xmlResponse.addResponseTag(TAG_ERROR, error);
+      error = parsePostRequest(request, response);
+      Map<String, String> stat = new HashMap<String, String>();
+      if (error != null && error.length() > 0 ) {
+        stat.put(TAG_ERROR, error);
       } else {
-        getFileItemsSummary(request, xmlResponse);
+        getFileItemsSummary(request, stat);
       }
-      finish(request, xmlResponse);
-      renderXmlResponse(request, response, xmlResponse, true);
+      String postResponse = statusToString(stat);
+      finish(request, postResponse);
+      renderXmlResponse(request, response, postResponse, true);
     } catch (UploadCanceledException e) {
-      xmlResponse.addResponseTag(TAG_CANCELED, "true");
-      renderXmlResponse(request, response, xmlResponse, true);
+      renderXmlResponse(request, response, XML_CANCELED_TRUE, true);
     } catch (UploadTimeoutException e) {
-      xmlResponse.addResponseTag(TAG_ERROR, XML_ERROR_TIMEOUT);
-      renderXmlResponse(request, response, xmlResponse, true);
+      renderXmlResponse(request, response, XML_ERROR_TIMEOUT, true);
     } catch (UploadSizeLimitException e) {
-      xmlResponse.addResponseTag(TAG_ERROR, e.getMessage());
-      renderXmlResponse(request, response, xmlResponse, true);
+      renderXmlResponse(request, response, "<" + TAG_ERROR + ">" + e.getMessage() + "</" + TAG_ERROR + ">", true);
     } catch (Exception e) {
       logger.error("UPLOAD-SERVLET (" + request.getSession().getId() + ") Exception -> " + e.getMessage() + "\n" + stackTraceToString(e));
-      xmlResponse.addResponseTag(TAG_ERROR, e.getMessage());
-      renderXmlResponse(request, response, xmlResponse, true);
+      error = e.getMessage();
+      renderXmlResponse(request, response, "<" + TAG_ERROR + ">" + error + "</" + TAG_ERROR + ">", true);
     } finally {
       perThreadRequest.set(null);
     }
   }
 
-  protected void getFileItemsSummary(HttpServletRequest request, XMLResponse xmlResponse) {
+  protected Map<String, String> getFileItemsSummary(HttpServletRequest request, Map<String, String> stat) {
+    if (stat == null) {
+      stat = new HashMap<String, String>();
+    }
     List<FileItem> s = getMyLastReceivedFileItems(request);
     if (s != null) {
-      xmlResponse.prepareFilesParams();
+      String files = "";
+      String params = "";
       for (FileItem i : s) {
         if (i.isFormField()) {
-          xmlResponse.addParam(i.getFieldName(), i.getString());
+          params += formFieldToXml(i);
         } else {
-          xmlResponse.addFile(i.getFieldName(), i.getName(), i.getSize(), i.getContentType() !=null ? i.getContentType() : "unknown", (i instanceof HasKey) ? ((HasKey)i).getKeyString() : null);
+          files += fileFieldToXml(i);
         }
       }
-      xmlResponse.addResponseTag(TAG_FINISHED, "ok");
+      stat.put(TAG_FILES, files);
+      stat.put(TAG_PARAMS, params);
+      stat.put(TAG_FINISHED, "ok");
     }
+    return stat;
+  }
+
+  private String formFieldToXml(FileItem i) {
+    Map<String, String> item = new HashMap<String, String>();
+    item.put(TAG_VALUE, "" + i.getString());
+    item.put(TAG_FIELD, "" + i.getFieldName());
+
+    Map<String, String> param = new HashMap<String, String>();
+    param.put(TAG_PARAM, statusToString(item));
+    return statusToString(param);
+  }
+
+  private String fileFieldToXml(FileItem i) {
+    Map<String, String> item = new HashMap<String, String>();
+    item.put(TAG_CTYPE, i.getContentType() !=null ? i.getContentType() : "unknown");
+    item.put(TAG_SIZE, "" + i.getSize());
+    item.put(TAG_NAME, "" + i.getName());
+    item.put(TAG_FIELD, "" + i.getFieldName());
+    if (i instanceof HasKey) {
+      String k = ((HasKey)i).getKeyString();
+      item.put(TAG_KEY, k);
+    }
+
+    Map<String, String> file = new HashMap<String, String>();
+    file.put(TAG_FILE, statusToString(item));
+    return statusToString(file);
   }
 
 /**
@@ -732,7 +791,7 @@ public class UploadServlet extends HttpServlet implements Servlet {
    * @param request
  * @param postResponse
    */
-  protected void finish(HttpServletRequest request, XMLResponse postResponse) {
+  protected void finish(HttpServletRequest request, String postResponse) {
     AbstractUploadListener listener = getCurrentListener(request);
     if (listener != null) {
       listener.setFinished(postResponse);
