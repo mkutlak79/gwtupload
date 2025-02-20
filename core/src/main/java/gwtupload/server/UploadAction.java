@@ -22,6 +22,7 @@ import gwtupload.server.exceptions.UploadActionException;
 import gwtupload.server.exceptions.UploadCanceledException;
 import gwtupload.shared.UConsts;
 
+import jakarta.servlet.http.Part;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.HashMap;
@@ -34,7 +35,6 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
-import org.apache.commons.fileupload2.core.FileItem;
 
 /**
  * <p>Class used to manipulate the data received in the server side.</p>
@@ -71,8 +71,8 @@ public class UploadAction extends UploadServlet {
    * @param parameter field name or file name of the desired file
    * @return an ImputString
    */
-  public static InputStream getFileStream(List<FileItem> sessionFiles, String parameter) throws IOException {
-    FileItem item = findFileItem(sessionFiles, parameter);
+  public static InputStream getFileStream(List<Part> sessionFiles, String parameter) throws IOException {
+    Part item = findFileItem(sessionFiles, parameter);
     return item == null ? null : item.getInputStream();
   }
 
@@ -83,9 +83,9 @@ public class UploadAction extends UploadServlet {
    * @param fieldName field name
    * @return the string value
    */
-  public static String getFormField(List<FileItem> sessionFiles, String fieldName) {
-    FileItem item = findItemByFieldName(sessionFiles, fieldName);
-    return item == null || item.isFormField() == false ? null : item.getString();
+  public static String getFormField(List<Part> sessionFiles, String fieldName) {
+	  Part item = findItemByFieldName(sessionFiles, fieldName);
+    return item == null || (item.getSubmittedFileName()!=null && !item.getSubmittedFileName().isEmpty()) ? item.getSubmittedFileName():null;
   }
 
   /**
@@ -106,7 +106,7 @@ public class UploadAction extends UploadServlet {
    *         In the case of error
    *
    */
-  public String executeAction(HttpServletRequest request, List<FileItem> sessionFiles) throws UploadActionException {
+  public String executeAction(HttpServletRequest request, List<Part> sessionFiles) throws UploadActionException {
     return null;
   }
 
@@ -127,7 +127,7 @@ public class UploadAction extends UploadServlet {
    *         the client and the item is not deleted from session
    *
    */
-  public void removeItem(HttpServletRequest request, FileItem item)  throws UploadActionException {
+  public void removeItem(HttpServletRequest request, Part item)  throws UploadActionException {
   }
 
   /**
@@ -154,7 +154,7 @@ public class UploadAction extends UploadServlet {
         // Notify classes extending this that they have to remove the item.
         removeItem(request, parameter);
         // Other way to notify classes extending this.
-        FileItem item = super.findFileItem(getMySessionFileItems(request), parameter);
+        Part item = findFileItem(getMySessionFileItems(request), parameter);
         if (item != null) {
           removeItem(request, item);
         }

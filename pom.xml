@@ -94,11 +94,6 @@
       <scope>provided</scope>
     </dependency>
     <dependency>
-      <groupId>org.apache.commons</groupId>
-      <artifactId>commons-fileupload2-jakarta-servlet6</artifactId>
-      <version>${commonsFileuploadVersion}</version>
-    </dependency>
-    <dependency>
       <groupId>commons-io</groupId>
       <artifactId>commons-io</artifactId>
       <version>${commonsIoVersion}</version>

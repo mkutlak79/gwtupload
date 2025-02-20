@@ -20,7 +20,6 @@ import java.io.Serializable;
 import java.util.Date;
 
 import jakarta.servlet.http.HttpServletRequest;
-import org.apache.commons.fileupload2.core.ProgressListener;
 
 /**
  *
@@ -33,7 +32,7 @@ import org.apache.commons.fileupload2.core.ProgressListener;
  * @author Manolo Carrasco Moñino
  *
  */
-public abstract class AbstractUploadListener implements ProgressListener, Serializable {
+public abstract class AbstractUploadListener implements  Serializable {
 
   protected static String className = AbstractUploadListener.class.getName().replaceAll("^.+\\.", "");
 
